@@ -5,14 +5,14 @@ import gc
 import torch
 import torch.nn as nn
 import time
-from PIL import Image
-
+from PIL import Image, ImageFile
 import torchvision.transforms.functional_tensor
 from torch.utils.data import Dataset
 from torchvision import datasets
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision.io import read_image
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -112,7 +112,7 @@ class ResNet(nn.Module):
 
 num_classes = 2
 num_epochs = 1
-batch_size = 30
+batch_size = 34
 learning_rate = 0.01
 
 train_transforms = transforms.Compose([
