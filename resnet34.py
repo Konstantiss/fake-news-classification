@@ -5,6 +5,7 @@ import gc
 import torch
 import torch.nn as nn
 import time
+from PIL import Image
 
 import torchvision.transforms.functional_tensor
 from torch.utils.data import Dataset
@@ -29,7 +30,9 @@ class Fakeddit(Dataset):
 
     def __getitem__(self, idx):
         img_path = os.path.join(self.img_dir, self.img_ids.iloc[idx, 0]) + ".jpg"
-        image = read_image(img_path)
+        image = Image.open(img_path)
+        toTensor = transforms.ToTensor()
+        image = toTensor(image)
         image = torchvision.transforms.functional_tensor.convert_image_dtype(image, torch.float32)
         label = self.img_labels.iloc[idx, 0]
         if self.transform:
@@ -109,13 +112,13 @@ class ResNet(nn.Module):
 
 num_classes = 2
 num_epochs = 1
-batch_size = 40
+batch_size = 30
 learning_rate = 0.01
 
 train_transforms = transforms.Compose([
     transforms.Resize((224, 224)),
-    transforms.Lambda(lambda x: x.repeat(3, 1, 1) if x.shape[0]==1 else x), #convert grayscale to RGB
-    transforms.Lambda(lambda x: x[:3] if x.shape[0]==4 else x), #convert 4 channels to 3
+    transforms.Lambda(lambda x: x.repeat(3, 1, 1) if x.shape[0]<3 else x), #convert grayscale to RGB
+    transforms.Lambda(lambda x: x[:3] if x.shape[0]>3 else x), #convert 4 channels to 3
     transforms.RandomHorizontalFlip(p=0.5),
 ])
 
