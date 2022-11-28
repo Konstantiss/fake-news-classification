@@ -43,10 +43,10 @@ def dropUnusedRows(annotations_file, img_dir):
 
 
 
-# train_dir = './Fakeddit/train_reduced/'
-# label_file_train = './Fakeddit/all_train.tsv'
-# train_data = dropUnusedRows(label_file_train, train_dir)
-# train_data.to_csv('./Fakeddit/train_reduced_more.csv')
+train_dir = './Fakeddit/train_reduced/'
+label_file_train = './Fakeddit/all_train.tsv'
+train_data = dropUnusedRows(label_file_train, train_dir)
+train_data.to_csv('./Fakeddit/train_reduced_more.csv')
 
 valid_dir = './Fakeddit/validate/'
 findCorruptImages(valid_dir)
@@ -54,7 +54,7 @@ label_file_valid = './Fakeddit/all_validate.tsv'
 valid_data = dropUnusedRows(label_file_valid, valid_dir)
 valid_data.to_csv('./Fakeddit/valid_reduced.csv')
 
-# test_dir = './Fakeddit/test_reduced/'
-# label_file_test = './Fakeddit/all_test_public.tsv'
-# test_data = dropUnusedRows(label_file_test, test_dir)
-# test_data.to_csv('./Fakeddit/test_reduced_more.csv')
+test_dir = './Fakeddit/test_reduced/'
+label_file_test = './Fakeddit/all_test_public.tsv'
+test_data = dropUnusedRows(label_file_test, test_dir)
+test_data.to_csv('./Fakeddit/test_reduced_more.csv')
