@@ -107,23 +107,15 @@ class ResNet(nn.Module):
 
         return x
 
-class SquarePad:
-    def __call__(self, image):
-        max_wh = max(image.size())
-        p_left, p_top = [(max_wh - s) // 2 for s in image.size()]
-        p_right, p_bottom = [max_wh - (s+pad) for s, pad in zip(image.size(), [p_left, p_top])]
-        padding = (p_left, p_top, p_right, p_bottom)
-        return nn.functional.pad(image, padding, 0, 'constant')
-
-
 num_classes = 2
 num_epochs = 1
-batch_size = 20
+batch_size = 40
 learning_rate = 0.01
 
 train_transforms = transforms.Compose([
     transforms.Resize((224, 224)),
-    SquarePad(),
+    transforms.Lambda(lambda x: x.repeat(3, 1, 1) if x.shape[0]==1 else x), #convert grayscale to RGB
+    transforms.Lambda(lambda x: x[:3] if x.shape[0]==4 else x), #convert 4 channels to 3
     transforms.RandomHorizontalFlip(p=0.5),
 ])
 
