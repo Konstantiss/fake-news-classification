@@ -4,6 +4,7 @@ import glob
 from multiprocessing import Pool
 from PIL import Image
 
+
 def checkSingleImage(f):
     try:
         im = Image.open(f)
@@ -15,12 +16,13 @@ def checkSingleImage(f):
         os.remove(f)
         return f
 
-def findCorruptImages():
+
+def findCorruptImages(img_dir):
     # Create a pool of processes to check images
     p = Pool()
 
     # Create a list of images to process
-    files = [f for f in glob.glob("./Fakeddit/train/*.jpg")]
+    files = [f for f in glob.glob(img_dir + "/*.jpg")]
 
     print(f"Files to be checked: {len(files)}")
 
@@ -31,6 +33,7 @@ def findCorruptImages():
     result = list(filter(None, result))
     print(f"Num corrupt files: {len(result)}")
 
+
 def dropUnusedRows(annotations_file, img_dir):
     dataset = pd.read_csv(annotations_file, sep='\t')
     file_list = os.listdir(img_dir)
@@ -38,15 +41,20 @@ def dropUnusedRows(annotations_file, img_dir):
     dataset = dataset[dataset.id.isin(file_list)]
     return dataset
 
-# findCorruptImages()
 
-train_dir = './Fakeddit/train/'
-label_file_train = './Fakeddit/all_train.tsv'
-train_data = dropUnusedRows(label_file_train, train_dir)
-train_data.to_csv('./Fakeddit/train_reduced.csv')
 
-test_dir = './Fakeddit/test/'
-label_file_test = './Fakeddit/all_test_public.tsv'
-test_data = dropUnusedRows(label_file_test, test_dir)
-test_data.to_csv('./Fakeddit/test_reduced.csv')
+# train_dir = './Fakeddit/train_reduced/'
+# label_file_train = './Fakeddit/all_train.tsv'
+# train_data = dropUnusedRows(label_file_train, train_dir)
+# train_data.to_csv('./Fakeddit/train_reduced_more.csv')
 
+valid_dir = './Fakeddit/validate/'
+findCorruptImages(valid_dir)
+label_file_valid = './Fakeddit/all_validate.tsv'
+valid_data = dropUnusedRows(label_file_valid, valid_dir)
+valid_data.to_csv('./Fakeddit/valid_reduced.csv')
+
+# test_dir = './Fakeddit/test_reduced/'
+# label_file_test = './Fakeddit/all_test_public.tsv'
+# test_data = dropUnusedRows(label_file_test, test_dir)
+# test_data.to_csv('./Fakeddit/test_reduced_more.csv')
