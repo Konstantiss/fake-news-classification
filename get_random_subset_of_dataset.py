@@ -14,9 +14,13 @@ def subset(src_dir, trg_dir, num_images):
 
 train_dir = './Fakeddit/train/'
 reduced_train_dir = './Fakeddit/train_reduced'
-subset(train_dir, reduced_train_dir, 10000)
+subset(train_dir, reduced_train_dir, 15000)
+
+valid_dir = './Fakeddit/validate/'
+reduced_valid_dir = './Fakeddit/validate_reduced'
+subset(valid_dir, reduced_valid_dir, 2000)
 
 test_dir = './Fakeddit/test/'
 reduced_test_dir = './Fakeddit/test_reduced'
-subset(test_dir, reduced_test_dir, 3000)
+subset(test_dir, reduced_test_dir, 4000)
 
