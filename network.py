@@ -13,7 +13,7 @@ from dataset import Fakeddit
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 num_classes = 2
-num_epochs = 1
+num_epochs = 2
 batch_size = 24
 learning_rate = 0.1
 
@@ -58,9 +58,13 @@ optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0
 # Train the model
 total_step = len(train_loader)
 accuracies_train = []
+accuracies_train_epoch = []
 accuracies_validate = []
+accuracies_validate_epoch = []
 losses_train = []
+losses_train_epoch = []
 losses_validate = []
+losses_validate_epoch = []
 
 start_time = time.time()
 
@@ -88,7 +92,8 @@ for epoch in range(num_epochs):
             del images, labels, outputs
             torch.cuda.empty_cache()
             gc.collect()
-
+    accuracies_train_epoch.append(sum(accuracies_train)/len(accuracies_train))
+    losses_train_epoch.append(sum(losses_train) / len(losses_train))
     # Validation
     with torch.no_grad():
         total_correct = 0
@@ -108,16 +113,16 @@ for epoch in range(num_epochs):
                 accuracies_validate.append(accuracy)
                 del images, labels, outputs
 
-            total_accuracy = 100 * total_correct / total
-            print('Accuracy of the network on the validation images: {} %'.format(total_accuracy))
+            accuracies_validate_epoch.append(sum(accuracies_validate) / len(accuracies_validate))
+            losses_validate_epoch.append(sum(losses_validate) / len(losses_validate))
 
 print('Total execution time: {:.4f} minutes'
       .format((time.time() - start_time) / 60))
 
 plt.figure(figsize=(10,5))
 plt.title("Training and Validation Loss")
-plt.plot(losses_validate,label="val")
-plt.plot(losses_train,label="train")
+plt.plot(losses_validate_epoch,label="val")
+plt.plot(losses_train_epoch,label="train")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
 plt.legend()
@@ -125,8 +130,8 @@ plt.show()
 
 plt.figure(figsize=(10,5))
 plt.title("Training and Validation accuracy")
-plt.plot(accuracies_validate,label="val")
-plt.plot(accuracies_train,label="train")
+plt.plot(accuracies_validate_epoch,label="val")
+plt.plot(accuracies_train_epoch,label="train")
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
 plt.legend()
