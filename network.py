@@ -1,19 +1,10 @@
-import numpy as np
-import pandas as pd
-import os
 import gc
 import torch
 import torch.nn as nn
 import time
 import matplotlib.pyplot as plt
-from PIL import Image, ImageFile
-import torchvision.transforms.functional_tensor
 from torch.utils.data import Dataset
-from torchvision import datasets
 from torchvision import transforms
-from torch.utils.data.sampler import SubsetRandomSampler
-from torchvision.io import read_image
-from tqdm import trange
 from tqdm import tqdm
 from time import sleep
 from resnet import ResNet50
