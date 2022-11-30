@@ -5,17 +5,19 @@ import time
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
 from torchvision import transforms
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 from time import sleep
 from resnet import ResNet50
+from resnet import ResNet18
 from dataset import Fakeddit
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 num_classes = 2
-num_epochs = 2
-batch_size = 24
-learning_rate = 0.1
+num_epochs = 20
+batch_size = 30
+learning_rate = 0.01
 
 train_transforms = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -30,17 +32,17 @@ test_transforms = transforms.Compose([
 ])
 
 train_dir = './Fakeddit/train_reduced/'
-label_file_train = './Fakeddit/train_reduced_more.csv'
+label_file_train = './Fakeddit/train_reduced.csv'
 train_data = Fakeddit(annotations_file=label_file_train, img_dir=train_dir,
                       transform=train_transforms)
 
 valid_dir = './Fakeddit/validate_reduced/'
-label_file_valid = './Fakeddit/valid_reduced_more.csv'
+label_file_valid = './Fakeddit/validate_reduced.csv'
 valid_data = Fakeddit(annotations_file=label_file_valid, img_dir=valid_dir,
                       transform=train_transforms)
 
 test_dir = './Fakeddit/test_reduced/'
-label_file_test = './Fakeddit/test_reduced_more.csv'
+label_file_test = './Fakeddit/test_reduced.csv'
 test_data = Fakeddit(annotations_file=label_file_test, img_dir=test_dir,
                      transform=test_transforms)
 
@@ -49,26 +51,29 @@ train_loader = torch.utils.data.DataLoader(
 valid_loader = torch.utils.data.DataLoader(
     valid_data, batch_size=batch_size, shuffle=True)
 
-model = ResNet50(num_classes=2).to(device)
+model = ResNet18(num_classes=2).to(device)
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.001, momentum=0.9)
+scheduler = ReduceLROnPlateau(optimizer, 'min', patience = 2)
 
 # Train the model
 total_step = len(train_loader)
-accuracies_train = []
 accuracies_train_epoch = []
-accuracies_validate = []
 accuracies_validate_epoch = []
-losses_train = []
 losses_train_epoch = []
-losses_validate = []
 losses_validate_epoch = []
 
 start_time = time.time()
 
 for epoch in range(num_epochs):
+    accuracies_train = []
+    accuracies_validate = []
+    losses_train = []
+    losses_validate = []
+    print("Learning rate: ", optimizer.param_groups[0]['lr'])
+    model.train()
     with tqdm(enumerate(train_loader), unit="batch", total=len(train_loader)) as tepoch:
         for i, (images, labels) in tepoch:
             tepoch.set_description(f"Epoch {epoch}")
@@ -94,7 +99,9 @@ for epoch in range(num_epochs):
             gc.collect()
     accuracies_train_epoch.append(sum(accuracies_train)/len(accuracies_train))
     losses_train_epoch.append(sum(losses_train) / len(losses_train))
+
     # Validation
+    model.eval()
     with torch.no_grad():
         total_correct = 0
         total = 0
@@ -111,11 +118,13 @@ for epoch in range(num_epochs):
                 total_correct += correct
                 accuracy = correct / batch_size
                 accuracies_validate.append(accuracy)
+                tepoch.set_postfix(loss=loss.item(), accuracy=100. * accuracy)
+                sleep(0.1)
                 del images, labels, outputs
 
             accuracies_validate_epoch.append(sum(accuracies_validate) / len(accuracies_validate))
             losses_validate_epoch.append(sum(losses_validate) / len(losses_validate))
-
+            scheduler.step(sum(losses_validate) / len(losses_validate))
 print('Total execution time: {:.4f} minutes'
       .format((time.time() - start_time) / 60))
 
