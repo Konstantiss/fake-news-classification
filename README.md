@@ -13,7 +13,7 @@ data.
           image being downloaded would become corrupt. Hence the need to delete those images.
     - `dropUnusedRows()`:
         - The dataset is huge (Roughly 1 million rows, which means roughly 1 million images). I didn't download all of
-          them, so this functions checks the `directory` of the images (`train`, `test`, etc.) and only keeps the rows
+          them, so this function checks the `directory` of the images (`train`, `test`, etc.) and only keeps the rows
           of
           the csv files that contain the image `ids` found in the `directory`.
     - `removeDatasetBias()`:
@@ -41,9 +41,9 @@ data.
       with only the necessary number of rows.
 - `network.py`:
     - Here we compose the final model (woah). It's what they call "pantrema" in greece.
-    - In the `transforms` I've used the `Lambda` transforms are used because some images contained either < 3 channels
+    - In the `transforms` the `Lambda` transforms are used because some images contained either < 3 channels
       or > 3 channels after their transformation to tensor, and our ResNet model takes 3-channel inputs.
     - I use `CrossEntropyLoss()` which is commonly used in binary classification problems, `SGD()` optimization,
-      and `ReduceLROnPlateau` with `patience = 2` optimization for the learning rate. The latter means that if the
+      and `ReduceLROnPlateau()` with `patience = 2` optimization for the learning rate. The latter means that if the
       validation loss is not decreased for two consecutive epochs, the learning rate will be multiplied with $10^{-1}$.
     - [tqdm](https://tqdm.github.io/) is used to show a progress bar when training the network.
