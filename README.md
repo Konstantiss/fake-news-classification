@@ -3,7 +3,7 @@
 The dataset used for our model is [r/Fakeddit](https://arxiv.org/abs/1911.03854) which contains both image and text
 data.
 
-# IMPORTANT: In order to load the original `tsv` files as dataframes use `pd.read_csv('filepath', sep=`\t`)`.
+#### IMPORTANT: In order to load the original `tsv` files as dataframes use `pd.read_csv('filepath', sep=`\t`)`.
 
 # Notes that will help when writing the final report:
 
