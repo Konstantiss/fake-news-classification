@@ -20,15 +20,6 @@ pbar = tqdm(total=len(df))
 
 cur_dir = os.getcwd()
 
-# if not os.path.exists("images"):
-#   os.makedirs("images")
-# for index, row in df.iterrows():
-#   if row["hasImage"] == True and row["image_url"] != "" and row["image_url"] != "nan":
-#     image_url = row["image_url"]
-#     try:
-#       response = urllib.request.urlretrieve(image_url, "images/" + row["id"] + ".jpg")
-#     except:
-#       continue
 for index, row in df.iterrows():
   if row["hasImage"] == True and row["image_url"] != "" and row["image_url"] != "nan":
     image_url = row["image_url"]
