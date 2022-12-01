@@ -3,3 +3,4 @@ matplotlip==3.6.2
 torchvision==0.14.0
 tqdm==4.64.1
 pandas==1.5.1
+transformers==4.24.0
