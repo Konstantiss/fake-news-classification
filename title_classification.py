@@ -10,13 +10,12 @@ data_path = './all_train.tsv'
 # since it's a tsv file the delimiter between columns is \t
 df = pd.read_csv(data_path, sep='\t', on_bad_lines='skip')
 
-labels = ['clean_title', '2_way_label', 'image_url']
+labels = ['clean_title', '2_way_label']
 
 df = df[labels]
 
 
 def delete_empty_rows(dataset):
-    dataset = dataset[dataset.image_url.notnull()]
     dataset = dataset[dataset.clean_title.notnull()]
     return dataset
 
@@ -52,6 +51,7 @@ class Dataset(torch.utils.data.Dataset):
         return batch_texts, batch_labels
 
 np.random.seed(112)
+df = df[:100]
 df_train, df_val, df_test = np.split(df.sample(frac=1, random_state=42), [int(.8*len(df)),int(.9*len(df))])
 print(len(df_train),len(df_val), len(df_test))
 
@@ -66,10 +66,10 @@ class BertClassifier(nn.Module):
         self.relu = nn.ReLU
 
     def forward(self, input_id, mask):
-        _, pooled_ouput = self.bert(input_ids=input_id, attention_mask=mask, return_dict=False)
-        dropout_ouput = self.dropout(pooled_ouput)
-        linear_ouput = self.linear(dropout_ouput)
-        final_layer = self.relu(linear_ouput)
+        _, pooled_output = self.bert(input_ids=input_id, attention_mask=mask, return_dict=False)
+        dropout_output = self.dropout(pooled_output)
+        linear_output = self.linear(dropout_output)
+        final_layer = self.relu(linear_output)
 
         return final_layer
 
@@ -77,7 +77,7 @@ class BertClassifier(nn.Module):
 def train(model, train_data, val_data, learning_rate, epochs):
     train, val = Dataset(train_data), Dataset(val_data)
     train_dataloader = torch.utils.data.DataLoader(train, batch_size=2, shuffle=True)
-    val_dataloader = torch.utils.data.DataLoader(val, batch_size=2, shuffle=True)
+    val_dataloader = torch.utils.data.DataLoader(val, batch_size=2)
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
@@ -94,7 +94,7 @@ def train(model, train_data, val_data, learning_rate, epochs):
         total_acc_train = 0
         total_loss_train = 0
 
-        for train_input, train_label in tqdm(train_dataloader):
+        for train_input, train_label in tqdm(train_dataloader.dataset):
 
             train_label = train_label.to(device)
             mask = train_input['attention_mask'].to(device)
