@@ -10,7 +10,7 @@ from tqdm import tqdm
 from time import sleep
 from resnet import ResNet50
 from resnet import ResNet18
-from dataset import Fakeddit
+from dataset import Images
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -33,18 +33,18 @@ test_transforms = transforms.Compose([
 
 train_dir = './Fakeddit/train_reduced/'
 label_file_train = './Fakeddit/train_reduced.csv'
-train_data = Fakeddit(annotations_file=label_file_train, img_dir=train_dir,
-                      transform=train_transforms)
+train_data = Images(annotations_file=label_file_train, img_dir=train_dir,
+                    transform=train_transforms)
 
 valid_dir = './Fakeddit/validate_reduced/'
 label_file_valid = './Fakeddit/validate_reduced.csv'
-valid_data = Fakeddit(annotations_file=label_file_valid, img_dir=valid_dir,
-                      transform=train_transforms)
+valid_data = Images(annotations_file=label_file_valid, img_dir=valid_dir,
+                    transform=train_transforms)
 
 test_dir = './Fakeddit/test_reduced/'
 label_file_test = './Fakeddit/test_reduced.csv'
-test_data = Fakeddit(annotations_file=label_file_test, img_dir=test_dir,
-                     transform=test_transforms)
+test_data = Images(annotations_file=label_file_test, img_dir=test_dir,
+                   transform=test_transforms)
 
 train_loader = torch.utils.data.DataLoader(
     train_data, batch_size=batch_size, shuffle=True)
