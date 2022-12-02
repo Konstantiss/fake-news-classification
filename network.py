@@ -125,6 +125,8 @@ for epoch in range(num_epochs):
             accuracies_validate_epoch.append(sum(accuracies_validate) / len(accuracies_validate))
             losses_validate_epoch.append(sum(losses_validate) / len(losses_validate))
             scheduler.step(sum(losses_validate) / len(losses_validate))
+
+torch.save(model.state_dict(), 'resnet-save.bin')
 print('Total execution time: {:.4f} minutes'
       .format((time.time() - start_time) / 60))
 

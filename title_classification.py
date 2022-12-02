@@ -170,6 +170,8 @@ plt.title('Training history')
 plt.ylabel('Accuracy')
 plt.xlabel('Epoch')
 plt.legend()
-plt.ylim([0, 1]);
+plt.ylim([0, 1])
+
+plt.show()
 
 
