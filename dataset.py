@@ -3,12 +3,13 @@ import os
 import torch
 from PIL import Image, ImageFile
 import torchvision.transforms.functional_tensor
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-class Fakeddit(Dataset):
+
+class Images(Dataset):
     def __init__(self, annotations_file, img_dir, transform=None, target_transform=None):
         self.img_labels = pd.read_csv(annotations_file, usecols=['2_way_label'])
         self.img_ids = pd.read_csv(annotations_file, usecols=['id'])
@@ -29,3 +30,51 @@ class Fakeddit(Dataset):
         if self.transform:
             image = self.transform(image)
         return image, label
+
+
+class Titles(Dataset):
+
+    def __init__(self, titles, labels, tokenizer, max_len):
+        self.titles = titles
+        self.labels = labels
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+
+    def __len__(self):
+        return len(self.titles)
+
+    def __getitem__(self, item):
+        title = str(self.titles[item])
+        label = self.labels[item]
+
+        encoding = self.tokenizer.encode_plus(
+            title,
+            add_special_tokens=True,
+            max_length=self.max_len,
+            return_token_type_ids=False,
+            padding='max_length',
+            return_attention_mask=True,
+            return_tensors='pt',
+        )
+
+        return {
+            'image_title': title,
+            'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten(),
+            'labels': torch.tensor(label, dtype=torch.long)
+        }
+
+
+def create_title_data_loader(df, tokenizer, max_len, batch_size):
+    ds = Titles(
+        titles=df['clean_title'].to_numpy(),
+        labels=df['2_way_label'].to_numpy(),
+        tokenizer=tokenizer,
+        max_len=max_len
+    )
+
+    return DataLoader(
+        ds,
+        batch_size=batch_size,
+        num_workers=4
+    )
