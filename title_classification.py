@@ -162,3 +162,14 @@ for epoch in range(NUM_EPOCHS):
     if val_acc > best_accuracy:
         torch.save(model.state_dict(), 'best_model_state.bin')
         best_accuracy = val_acc
+
+plt.plot(history['train_acc'], label='train accuracy')
+plt.plot(history['val_acc'], label='validation accuracy')
+
+plt.title('Training history')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend()
+plt.ylim([0, 1]);
+
+
