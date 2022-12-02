@@ -1,148 +1,146 @@
-import pandas as pd
-import torch.utils.data
-from transformers import BertTokenizer, BertModel
-from torch import nn
-from torch.optim import Adam
-from tqdm import tqdm
+import transformers
+from transformers import BertModel, BertTokenizer, AdamW, get_linear_schedule_with_warmup
+import torch
 import numpy as np
+import pandas as pd
+import seaborn as sns
+from pylab import rcParams
+import matplotlib.pyplot as plt
+from matplotlib import rc
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, classification_report
+from collections import defaultdict
+from textwrap import wrap
+from torch import nn, optim
+from torch.utils.data import Dataset, DataLoader
+import torch.nn.functional as F
+from dataset import Titles, create_title_data_loader
+from bert import TitleClassifier
 
-data_path = './all_train.tsv'
-# since it's a tsv file the delimiter between columns is \t
-df = pd.read_csv(data_path, sep='\t', on_bad_lines='skip')
+PRE_TRAINED_MODEL_NAME = 'bert-base-cased'
+MAX_TITLE_LENGTH = 100
+NUM_EPOCHS = 2
+NUM_CLASSES = 2
+BATCH_SIZE = 8
 
-labels = ['clean_title', '2_way_label']
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-df = df[labels]
+tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
 
+train = pd.read_csv('./Fakeddit/train.csv')
+train = train.dropna(subset=['clean_title'])
 
-def delete_empty_rows(dataset):
-    dataset = dataset[dataset.clean_title.notnull()]
-    return dataset
+validate = pd.read_csv('./Fakeddit/validate.csv')
+validate = validate.dropna(subset=['clean_title'])
 
+train_loader = create_title_data_loader(train, tokenizer, MAX_TITLE_LENGTH, BATCH_SIZE)
+validate_loader = create_title_data_loader(validate, tokenizer, MAX_TITLE_LENGTH, BATCH_SIZE)
 
-df = delete_empty_rows(df)
+model = TitleClassifier(NUM_CLASSES)
+model = model.to(device)
 
-tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+optimizer = AdamW(model.parameters(), lr=2e-5, correct_bias=False)
+total_steps = len(train_loader) * NUM_EPOCHS
 
+scheduler = get_linear_schedule_with_warmup(
+  optimizer,
+  num_warmup_steps=0,
+  num_training_steps=total_steps
+)
 
-class Dataset(torch.utils.data.Dataset):
+loss_fn = nn.CrossEntropyLoss().to(device)
 
-    def __init__(self, df):
-        self.labels = [labels[label] for label in df['2_way_label']]
-        self.texts = [tokenizer(text, padding='max_length', max_length=100, truncation=True, return_tensors="pt") for
-                      text in df['clean_title']]
+def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_examples):
+    model = model.train()
 
-    def classes(self):
-        return self.labels
+    losses = []
+    correct_predictions = 0
 
-    def __len__(self):
-        return len(self.labels)
+    for d in data_loader:
+        input_ids = d["input_ids"].to(device)
+        attention_mask = d["attention_mask"].to(device)
+        labels = d["labels"].to(device)
 
-    def get_batch_labels(self, idx):
-        return np.array(self.labels[idx])
+        outputs = model(
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
 
-    def get_batch_text(self, idx):
-        return self.texts[idx]
+        _, preds = torch.max(outputs, dim=1)
+        loss = loss_fn(outputs, labels)
 
-    def __getitem__(self, idx):
-        batch_texts = self.get_batch_text(idx)
-        batch_labels = self.get_batch_labels(idx)
+        correct_predictions += torch.sum(preds == labels)
+        losses.append(loss.item())
 
-        return batch_texts, batch_labels
+        loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+        scheduler.step()
+        optimizer.zero_grad()
 
-np.random.seed(112)
-df = df[:100]
-df_train, df_val, df_test = np.split(df.sample(frac=1, random_state=42), [int(.8*len(df)),int(.9*len(df))])
-print(len(df_train),len(df_val), len(df_test))
+    return correct_predictions.double() / n_examples, np.mean(losses)
 
-class BertClassifier(nn.Module):
+def eval_model(model, data_loader, loss_fn, device, n_examples):
+  model = model.eval()
 
-    def __init__(self, dropout=0.5):
-        super().__init__()
+  losses = []
+  correct_predictions = 0
 
-        self.bert = BertModel.from_pretrained('bert-base-cased')
-        self.dropout = nn.Dropout(dropout)
-        self.linear = nn.Linear(768, 5)
-        self.relu = nn.ReLU
+  with torch.no_grad():
+    for d in data_loader:
+      input_ids = d["input_ids"].to(device)
+      attention_mask = d["attention_mask"].to(device)
+      labels = d["labels"].to(device)
 
-    def forward(self, input_id, mask):
-        _, pooled_output = self.bert(input_ids=input_id, attention_mask=mask, return_dict=False)
-        dropout_output = self.dropout(pooled_output)
-        linear_output = self.linear(dropout_output)
-        final_layer = self.relu(linear_output)
+      outputs = model(
+        input_ids=input_ids,
+        attention_mask=attention_mask
+      )
+      _, preds = torch.max(outputs, dim=1)
 
-        return final_layer
+      loss = loss_fn(outputs, labels)
 
+      correct_predictions += torch.sum(preds == labels)
+      losses.append(loss.item())
 
-def train(model, train_data, val_data, learning_rate, epochs):
-    train, val = Dataset(train_data), Dataset(val_data)
-    train_dataloader = torch.utils.data.DataLoader(train, batch_size=2, shuffle=True)
-    val_dataloader = torch.utils.data.DataLoader(val, batch_size=2)
+  return correct_predictions.double() / n_examples, np.mean(losses)
 
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
+history = defaultdict(list)
+best_accuracy = 0
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = Adam(model.parameters(), lr=learning_rate)
+for epoch in range(NUM_EPOCHS):
 
-    if use_cuda:
-        model = model.cuda()
-        criterion = criterion.cuda()
+  print(f'Epoch {epoch + 1}/{NUM_EPOCHS}')
+  print('-' * 10)
 
-    for epoch_num in range(epochs):
+  train_acc, train_loss = train_epoch(
+    model,
+    train_loader,
+    loss_fn, 
+    optimizer, 
+    device, 
+    scheduler, 
+    len(train)
+  )
 
-        total_acc_train = 0
-        total_loss_train = 0
+  print(f'Train loss {train_loss} accuracy {train_acc}')
 
-        for train_input, train_label in tqdm(train_dataloader.dataset):
+  val_acc, val_loss = eval_model(
+    model,
+    validate_loader,
+    loss_fn, 
+    device, 
+    len(validate)
+  )
 
-            train_label = train_label.to(device)
-            mask = train_input['attention_mask'].to(device)
-            input_id = train_input['input_ids'].squeeze(1).to(device)
+  print(f'Val   loss {val_loss} accuracy {val_acc}')
+  print()
 
-            output = model(input_id,mask)
-            batch_loss = criterion(output,train_label.long())
-            total_loss_train += batch_loss.item()
+  history['train_acc'].append(train_acc)
+  history['train_loss'].append(train_loss)
+  history['val_acc'].append(val_acc)
+  history['val_loss'].append(val_loss)
 
-            acc = (output.argmax(dim=1) == train_label).sum().item()
-            total_acc_train += acc
-
-            acc = (output.argmax(dim=1) == train_label).sum().item()
-            total_acc_train += acc
-
-            model.zero_grad()
-            batch_loss.backward()
-            optimizer.step()
-
-        total_acc_val = 0
-        total_loss_val = 0
-
-        with torch.no_grad():
-
-            for val_input, val_label in val_dataloader:
-                val_label = val_label.to(device)
-                mask = val_input['attention_mask'].to(device)
-                input_id = val_input['input_ids'].squeeze(1).to(device)
-
-                output = model(input_id, mask)
-
-                batch_loss = criterion(output, val_label.long())
-                total_loss_val += batch_loss.item()
-
-                acc = (output.argmax(dim=1) == val_label).sum().item()
-                total_acc_val += acc
-
-        print(
-            f'Epochs: {epoch_num + 1} | Train Loss: {total_loss_train / len(train_data): .3f} \
-                            | Train Accuracy: {total_acc_train / len(train_data): .3f} \
-                            | Val Loss: {total_loss_val / len(val_data): .3f} \
-                            | Val Accuracy: {total_acc_val / len(val_data): .3f}')
-
-dataset = Dataset(df)
-
-
-EPOCHS = 2
-model = BertClassifier()
-learning_rate = 1e-6
-
-train(model, df_train, df_val,learning_rate,epochs=EPOCHS)
+  if val_acc > best_accuracy:
+    torch.save(model.state_dict(), 'best_model_state.bin')
+    best_accuracy = val_acc
