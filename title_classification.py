@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 PRE_TRAINED_MODEL_NAME = 'bert-base-cased'
 MAX_TITLE_LENGTH = 100
-NUM_EPOCHS = 2
+NUM_EPOCHS = 1
 NUM_CLASSES = 2
 BATCH_SIZE = 8
 
@@ -53,6 +53,8 @@ scheduler = get_linear_schedule_with_warmup(
 
 loss_fn = nn.CrossEntropyLoss().to(device)
 
+output_tensors_train = torch.tensor([0, 0])
+output_tensors_validate = torch.tensor([0, 0])
 
 def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_examples):
     model = model.train()
@@ -71,6 +73,11 @@ def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_exa
                 input_ids=input_ids,
                 attention_mask=attention_mask
             )
+
+            if epoch == NUM_EPOCHS and output_tensors_train == torch.tensor([0, 0]):
+                output_tensors_train = outputs.cpu()
+            elif epoch == NUM_EPOCHS:
+                output_tensors_train = torch.vstack((output_tensors_train, outputs.cpu()))
 
             _, preds = torch.max(outputs, dim=1)
             loss = loss_fn(outputs, labels)
@@ -109,6 +116,12 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
                     input_ids=input_ids,
                     attention_mask=attention_mask
                 )
+
+                if output_tensors_validate == torch.tensor([0, 0]):
+                    output_tensors_validate = outputs.cpu()
+                else:
+                    output_tensors_validate = torch.vstack((output_tensors_validate, outputs.cpu()))
+
                 _, preds = torch.max(outputs, dim=1)
 
                 loss = loss_fn(outputs, labels)
@@ -159,9 +172,10 @@ for epoch in range(NUM_EPOCHS):
     history['val_acc'].append(val_acc)
     history['val_loss'].append(val_loss)
 
-    if val_acc > best_accuracy:
-        torch.save(model.state_dict(), 'best_model_state.bin')
-        best_accuracy = val_acc
+
+torch.save(model.state_dict(), 'bert-save.bin')
+torch.save(output_tensors_train, 'resnet-tensors-train.pt')
+torch.save(output_tensors_validate, 'resnet-tensors-validate.pt')
 
 plt.plot(history['train_acc'], label='train accuracy')
 plt.plot(history['val_acc'], label='validation accuracy')
