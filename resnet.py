@@ -107,6 +107,7 @@ class ResNet(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * 4, num_classes)
+        self.out = nn.Softmax(1)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -121,6 +122,7 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = x.reshape(x.shape[0], -1)
         x = self.fc(x)
+        x = self.out(x)
 
         return x
 
