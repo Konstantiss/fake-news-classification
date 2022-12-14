@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import time
 import matplotlib.pyplot as plt
+import pandas as pd
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -10,13 +11,13 @@ from tqdm import tqdm
 from time import sleep
 from resnet import ResNet50
 from resnet import ResNet18
-from dataset import Fakeddit
+from dataset import Images
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 num_classes = 2
-num_epochs = 20
-batch_size = 30
+num_epochs = 1
+batch_size = 24
 learning_rate = 0.01
 
 train_transforms = transforms.Compose([
@@ -33,25 +34,25 @@ test_transforms = transforms.Compose([
 
 train_dir = './Fakeddit/train_reduced/'
 label_file_train = './Fakeddit/train_reduced.csv'
-train_data = Fakeddit(annotations_file=label_file_train, img_dir=train_dir,
-                      transform=train_transforms)
+train_data = Images(annotations_file=label_file_train, img_dir=train_dir,
+                    transform=train_transforms)
 
 valid_dir = './Fakeddit/validate_reduced/'
 label_file_valid = './Fakeddit/validate_reduced.csv'
-valid_data = Fakeddit(annotations_file=label_file_valid, img_dir=valid_dir,
-                      transform=train_transforms)
+valid_data = Images(annotations_file=label_file_valid, img_dir=valid_dir,
+                    transform=train_transforms)
 
 test_dir = './Fakeddit/test_reduced/'
 label_file_test = './Fakeddit/test_reduced.csv'
-test_data = Fakeddit(annotations_file=label_file_test, img_dir=test_dir,
-                     transform=test_transforms)
+test_data = Images(annotations_file=label_file_test, img_dir=test_dir,
+                   transform=test_transforms)
 
 train_loader = torch.utils.data.DataLoader(
     train_data, batch_size=batch_size, shuffle=True)
 valid_loader = torch.utils.data.DataLoader(
     valid_data, batch_size=batch_size, shuffle=True)
 
-model = ResNet18(num_classes=2).to(device)
+model = ResNet50(num_classes=2).to(device)
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
@@ -66,6 +67,11 @@ losses_train_epoch = []
 losses_validate_epoch = []
 
 start_time = time.time()
+
+output_tensors_train = torch.tensor([0, 0])
+output_tensors_validate = torch.tensor([0, 0])
+
+tensors = torch.load('resnet-tensors.pt')
 
 for epoch in range(num_epochs):
     accuracies_train = []
@@ -82,6 +88,12 @@ for epoch in range(num_epochs):
             labels = labels.to(device)
             # Forward pass
             outputs = model(images)
+
+            if epoch == num_epochs and i == 0:
+                output_tensors_train = outputs.cpu()
+            elif epoch == num_epochs:
+                output_tensors_train = torch.vstack((output_tensors_train, outputs.cpu()))
+
             predictions = outputs.argmax(dim=1, keepdim=True).squeeze()
             correct = (predictions == labels).sum().item()
             accuracy = correct / batch_size
@@ -106,10 +118,16 @@ for epoch in range(num_epochs):
         total_correct = 0
         total = 0
         with tqdm(valid_loader, unit="batch", total=len(valid_loader)) as tepoch:
-            for images, labels in tepoch:
+            for i, (images, labels) in tepoch:
                 images = images.to(device)
                 labels = labels.to(device)
                 outputs = model(images)
+
+                if i == 0:
+                    output_tensors_validate = outputs.cpu()
+                else:
+                    output_tensors_validate = torch.vstack((output_tensors_validate, outputs.cpu()))
+
                 loss = criterion(outputs, labels)
                 losses_validate.append(loss.item())
                 _, predicted = torch.max(outputs.data, 1)
@@ -125,6 +143,10 @@ for epoch in range(num_epochs):
             accuracies_validate_epoch.append(sum(accuracies_validate) / len(accuracies_validate))
             losses_validate_epoch.append(sum(losses_validate) / len(losses_validate))
             scheduler.step(sum(losses_validate) / len(losses_validate))
+
+torch.save(output_tensors_train, 'resnet-tensors-train.pt')
+torch.save(output_tensors_validate, 'resnet-tensors-validate.pt')
+torch.save(model.state_dict(), 'resnet-save.bin')
 print('Total execution time: {:.4f} minutes'
       .format((time.time() - start_time) / 60))
 
