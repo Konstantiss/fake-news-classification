@@ -16,9 +16,9 @@ from dataset import Images
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 num_classes = 2
-num_epochs = 1
+num_epochs = 20
 batch_size = 24
-learning_rate = 0.01
+learning_rate = 0.001
 
 train_transforms = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -57,7 +57,7 @@ model = ResNet50(num_classes=2).to(device)
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.001, momentum=0.9)
-scheduler = ReduceLROnPlateau(optimizer, 'min', patience = 2)
+scheduler = ReduceLROnPlateau(optimizer, 'min', patience=1)
 
 # Train the model
 total_step = len(train_loader)
@@ -70,8 +70,6 @@ start_time = time.time()
 
 output_tensors_train = torch.tensor([0, 0])
 output_tensors_validate = torch.tensor([0, 0])
-
-tensors = torch.load('resnet-tensors.pt')
 
 for epoch in range(num_epochs):
     accuracies_train = []
@@ -89,9 +87,11 @@ for epoch in range(num_epochs):
             # Forward pass
             outputs = model(images)
 
-            if epoch == num_epochs and i == 0:
+            #if epoch == num_epochs and i == 0:
+            if i == 0:
                 output_tensors_train = outputs.cpu()
-            elif epoch == num_epochs:
+            #elif epoch == num_epochs:
+            else:
                 output_tensors_train = torch.vstack((output_tensors_train, outputs.cpu()))
 
             predictions = outputs.argmax(dim=1, keepdim=True).squeeze()
@@ -109,7 +109,7 @@ for epoch in range(num_epochs):
             del images, labels, outputs
             torch.cuda.empty_cache()
             gc.collect()
-    accuracies_train_epoch.append(sum(accuracies_train)/len(accuracies_train))
+    accuracies_train_epoch.append(sum(accuracies_train) / len(accuracies_train))
     losses_train_epoch.append(sum(losses_train) / len(losses_train))
 
     # Validation
@@ -117,7 +117,7 @@ for epoch in range(num_epochs):
     with torch.no_grad():
         total_correct = 0
         total = 0
-        with tqdm(valid_loader, unit="batch", total=len(valid_loader)) as tepoch:
+        with tqdm(enumerate(valid_loader), unit="batch", total=len(valid_loader)) as tepoch:
             for i, (images, labels) in tepoch:
                 images = images.to(device)
                 labels = labels.to(device)
@@ -150,19 +150,19 @@ torch.save(model.state_dict(), 'resnet-save.bin')
 print('Total execution time: {:.4f} minutes'
       .format((time.time() - start_time) / 60))
 
-plt.figure(figsize=(10,5))
+plt.figure(figsize=(10, 5))
 plt.title("Training and Validation Loss")
-plt.plot(losses_validate_epoch,label="val")
-plt.plot(losses_train_epoch,label="train")
+plt.plot(losses_validate_epoch, label="val")
+plt.plot(losses_train_epoch, label="train")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
 plt.legend()
 plt.show()
 
-plt.figure(figsize=(10,5))
+plt.figure(figsize=(10, 5))
 plt.title("Training and Validation accuracy")
-plt.plot(accuracies_validate_epoch,label="val")
-plt.plot(accuracies_train_epoch,label="train")
+plt.plot(accuracies_validate_epoch, label="val")
+plt.plot(accuracies_train_epoch, label="train")
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
 plt.legend()
