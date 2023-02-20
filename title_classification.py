@@ -4,7 +4,6 @@ import torch
 import numpy as np
 import pandas as pd
 import gc
-import seaborn as sns
 from pylab import rcParams
 import matplotlib.pyplot as plt
 from matplotlib import rc
@@ -22,7 +21,7 @@ from tqdm import tqdm
 
 PRE_TRAINED_MODEL_NAME = 'bert-base-cased'
 MAX_TITLE_LENGTH = 100
-NUM_EPOCHS = 1
+NUM_EPOCHS = 10
 NUM_CLASSES = 2
 BATCH_SIZE = 8
 
@@ -39,8 +38,8 @@ validate = validate.dropna(subset=['clean_title'])
 train_loader = create_title_data_loader(train, tokenizer, MAX_TITLE_LENGTH, BATCH_SIZE)
 validate_loader = create_title_data_loader(validate, tokenizer, MAX_TITLE_LENGTH, BATCH_SIZE)
 
-model = TitleClassifier(NUM_CLASSES)
-model = model.to(device)
+model = TitleClassifier(NUM_CLASSES).to(device)
+model.load_state_dict(torch.load('best_bert.bin'))
 
 optimizer = AdamW(model.parameters(), lr=2e-5, correct_bias=False)
 total_steps = len(train_loader) * NUM_EPOCHS
@@ -74,9 +73,12 @@ def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_exa
                 attention_mask=attention_mask
             )
 
-            if epoch == NUM_EPOCHS and output_tensors_train == torch.tensor([0, 0]):
+            global output_tensors_train
+            #if epoch == NUM_EPOCHS and torch.count_nonzero(output_tensors_train) == 0:
+            if torch.count_nonzero(output_tensors_train) == 0:
                 output_tensors_train = outputs.cpu()
-            elif epoch == NUM_EPOCHS:
+            #elif epoch == NUM_EPOCHS:
+            else:
                 output_tensors_train = torch.vstack((output_tensors_train, outputs.cpu()))
 
             _, preds = torch.max(outputs, dim=1)
@@ -116,8 +118,8 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
                     input_ids=input_ids,
                     attention_mask=attention_mask
                 )
-
-                if output_tensors_validate == torch.tensor([0, 0]):
+                global output_tensors_validate
+                if torch.count_nonzero(output_tensors_validate) == 0:
                     output_tensors_validate = outputs.cpu()
                 else:
                     output_tensors_validate = torch.vstack((output_tensors_validate, outputs.cpu()))
@@ -174,13 +176,13 @@ for epoch in range(NUM_EPOCHS):
 
 
 torch.save(model.state_dict(), 'bert-save.bin')
-torch.save(output_tensors_train, 'resnet-tensors-train.pt')
-torch.save(output_tensors_validate, 'resnet-tensors-validate.pt')
+torch.save(output_tensors_train, 'bert-tensors-train.pt')
+torch.save(output_tensors_validate, 'bert-tensors-validate.pt')
 
 plt.plot(history['train_acc'], label='train accuracy')
 plt.plot(history['val_acc'], label='validation accuracy')
 
-plt.title('Training history')
+plt.title('Training history (accuracy)')
 plt.ylabel('Accuracy')
 plt.xlabel('Epoch')
 plt.legend()
@@ -188,4 +190,13 @@ plt.ylim([0, 1])
 
 plt.show()
 
+plt.plot(history['train_loss'], label='train loss')
+plt.plot(history['val_loss'], label='validation loss')
 
+plt.title('Training history (loss)')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend()
+plt.ylim([0, 1])
+
+plt.show()
