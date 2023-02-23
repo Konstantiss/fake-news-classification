@@ -1,6 +1,6 @@
 # Fake news classification
 
-The dataset used for our model is [r/Fakeddit](https://arxiv.org/abs/1911.03854) which contains both image and text
+The dataset used to train the system is [r/Fakeddit](https://arxiv.org/abs/1911.03854) which contains both image and text
 data.
 
 #### ATTENTION: In order to load the original `tsv` files as dataframes use `pd.read_csv('filepath', sep=`\t`)`.
