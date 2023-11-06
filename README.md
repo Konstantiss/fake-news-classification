@@ -34,12 +34,12 @@ data.
     - Custom class to load the images and labels into tensors in order to train the model based
       on [pytorch documentation](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html).
 - `get_random_subset_of_dataset.py`:
-    - The downloaded images were still too many and the training took about 30 mins per epoch (sheesh), so I had to
+    - The downloaded images were still too many and the training took about 30 mins per epoch (on an NVIDIA GTX 1650 graphics card), so I had to
       reduce the number of images even more. This is where this script comes in.
     - After running this, we need to run `preprocessing.py` again in order to remove dataset bias and make new csv files
       with only the necessary number of rows.
 - `title_classification.py`:
-    - Here we compose the final model.
+    - Here the final model is composed.
     - In the `transforms` the `Lambda` transforms are used because some images contained either < 3 channels
       or > 3 channels after their transformation to tensor, and our ResNet model takes 3-channel inputs.
     - `CrossEntropyLoss()` is used which is commonly used in binary classification problems, `SGD()` optimization,
