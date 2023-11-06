@@ -38,7 +38,7 @@ data.
       reduce the number of images even more. This is where this script comes in.
     - After running this, we need to run `preprocessing.py` again in order to remove dataset bias and make new csv files
       with only the necessary number of rows.
-- `network.py`:
+- `title_classification.py`:
     - Here we compose the final model.
     - In the `transforms` the `Lambda` transforms are used because some images contained either < 3 channels
       or > 3 channels after their transformation to tensor, and our ResNet model takes 3-channel inputs.
