@@ -38,11 +38,12 @@ data.
       reduce the number of images even more. This is where this script comes in.
     - After running this, we need to run `preprocessing.py` again in order to remove dataset bias and make new csv files
       with only the necessary number of rows.
-- `title_classification.py`:
-    - Here the final model is composed.
+- `image_classification.py`:
+    - Here happens the training of the ResNet model for the image classification.
     - In the `transforms` the `Lambda` transforms are used because some images contained either < 3 channels
       or > 3 channels after their transformation to tensor, and our ResNet model takes 3-channel inputs.
     - `CrossEntropyLoss()` is used which is commonly used in binary classification problems, `SGD()` optimization,
       and `ReduceLROnPlateau()` with `patience = 1` optimization for the learning rate. The latter means that if the
       validation loss is not decreased for two consecutive epochs, the learning rate will be multiplied with $10^{-1}$.
     - [tqdm](https://tqdm.github.io/) is used to show a progress bar when training the network.
+
